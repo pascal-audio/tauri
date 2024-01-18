@@ -856,13 +856,9 @@ fn copy_files_and_run<R: Read + Seek>(
       .concat();
 
       // Run the EXE
-      let mut cmd = Command::new(powershell_path);
-      cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden"])
-        .args(["Start-Process"])
-        .arg(installer_path);
+      let mut cmd = Command::new(&found_path);
       if !installer_args.is_empty() {
-        cmd.arg("-ArgumentList").arg(installer_args.join(", "));
+        cmd.args(&installer_args);
       }
       cmd.spawn().expect("installer failed to start");
 
