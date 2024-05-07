@@ -846,16 +846,7 @@ fn copy_files_and_run<R: Read + Seek>(
       installer_path.push("\"");
 
       let installer_args = [
-        config
-          .tauri
-          .updater
-          .windows
-          .install_mode
-          .nsis_args()
-          .iter()
-          .map(ToString::to_string)
-          .collect(),
-        vec!["/ARGS".to_string()],
+        config.tauri.updater.windows.install_mode.nsis_args(),
         current_exe_args,
         config
           .tauri
@@ -869,16 +860,13 @@ fn copy_files_and_run<R: Read + Seek>(
       .concat();
 
       // Run the EXE
-      let mut cmd = Command::new(powershell_path);
-      cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
-        .arg(installer_path);
+      let mut cmd = Command::new(&found_path);
       if !installer_args.is_empty() {
-        cmd.arg("-ArgumentList").arg(installer_args.join(", "));
+        cmd.args(&installer_args);
       }
       cmd
         .spawn()
-        .expect("Running NSIS installer from powershell has failed to start");
+        .expect("Running NSIS installer has failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
