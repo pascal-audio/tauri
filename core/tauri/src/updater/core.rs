@@ -827,10 +827,6 @@ fn copy_files_and_run<R: Read + Seek>(
   let paths = read_dir(&tmp_dir)?;
 
   let system_root = std::env::var("SYSTEMROOT");
-  let powershell_path = system_root.as_ref().map_or_else(
-    |_| "powershell.exe".to_string(),
-    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
-  );
 
   let current_exe_args = env.args.clone();
 
@@ -869,16 +865,13 @@ fn copy_files_and_run<R: Read + Seek>(
       .concat();
 
       // Run the EXE
-      let mut cmd = Command::new(powershell_path);
-      cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden", "Start-Process"])
-        .arg(installer_path);
+      let mut cmd = Command::new(&found_path);
       if !installer_args.is_empty() {
-        cmd.arg("-ArgumentList").arg(installer_args.join(", "));
+        cmd.args(&installer_args);
       }
       cmd
         .spawn()
-        .expect("Running NSIS installer from powershell has failed to start");
+        .expect("Running NSIS installer has failed to start");
 
       exit(0);
     } else if found_path.extension() == Some(OsStr::new("msi")) {
@@ -947,31 +940,17 @@ fn copy_files_and_run<R: Read + Seek>(
       .concat();
 
       // run the installer and relaunch the application
-      let mut powershell_cmd = Command::new(powershell_path);
-
-      powershell_cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden"])
-        .args([
-          "Start-Process",
-          "-Wait",
-          "-FilePath",
-          "$Env:SYSTEMROOT\\System32\\msiexec.exe",
-          "-ArgumentList",
-        ])
-        .arg("/i,")
-        .arg(&msi_path)
-        .arg(format!(", {}, /promptrestart;", installer_args.join(", ")))
-        .arg("Start-Process")
-        .arg(current_executable);
-
-      if !current_exe_args.is_empty() {
-        powershell_cmd
-          .arg("-ArgumentList")
-          .arg(current_exe_args.join(", "));
+      let mut cmd = Command::new(&msi_path);
+      if !installer_args.is_empty() {
+        cmd.args(&installer_args);
       }
 
-      let powershell_install_res = powershell_cmd.spawn();
-      if powershell_install_res.is_err() {
+      if !current_exe_args.is_empty() {
+        cmd.arg("-ArgumentList").arg(current_exe_args.join(", "));
+      }
+
+      let cmd_install_res = cmd.spawn();
+      if cmd_install_res.is_err() {
         // fallback to running msiexec directly - relaunch won't be available
         // we use this here in case powershell fails in an older machine somehow
         let msiexec_path = system_root.as_ref().map_or_else(
