@@ -835,12 +835,6 @@ fn copy_files_and_run<R: Read + Seek>(
 
   let paths = read_dir(&tmp_dir)?;
 
-  let system_root = std::env::var("SYSTEMROOT");
-  let powershell_path = system_root.as_ref().map_or_else(
-    |_| "powershell.exe".to_string(),
-    |p| format!("{p}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe"),
-  );
-
   let mut installer_args_shellexecute;
 
   for path in paths {
@@ -929,32 +923,14 @@ fn copy_files_and_run<R: Read + Seek>(
       .concat();
 
       // run the installer and relaunch the application
-      let mut powershell_cmd = Command::new(powershell_path);
-
-      powershell_cmd
-        .args(["-NoProfile", "-WindowStyle", "Hidden"])
-        .args([
-          "Start-Process",
-          "-Wait",
-          "-FilePath",
-          "$Env:SYSTEMROOT\\System32\\msiexec.exe",
-          "-ArgumentList",
-        ])
-        .arg("/i,")
-        .arg(&msi_path)
-        .arg(format!(
-          ", {}, /promptrestart;",
-          msi_installer_args.join(", ")
-        ))
-        .arg("Start-Process")
-        .arg(current_executable);
-
+      let mut cmd = Command::new(&msi_path);
+      cmd.args(&msi_installer_args);
       if !env.args.is_empty() {
-        powershell_cmd.arg("-ArgumentList").arg(env.args.join(", "));
+        cmd.arg("-ArgumentList").arg(env.args.join(", "));
       }
 
-      let powershell_install_res = powershell_cmd.spawn();
-      if powershell_install_res.is_err() {
+      let cmd_res = cmd.spawn();
+      if cmd_res.is_err() {
         installer_args_shellexecute = [
           config
             .tauri
