@@ -318,6 +318,10 @@ fn resource_dir_from<P: AsRef<Path>>(
       .canonicalize()
       .map_err(Into::into);
   }
+  #[cfg(target_os = "ios")]
+  {
+    res = exe_dir.canonicalize().map_err(Into::into);
+  }
 
   res
 }
